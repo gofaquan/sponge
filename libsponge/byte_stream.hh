@@ -1,6 +1,8 @@
 #ifndef SPONGE_LIBSPONGE_BYTE_STREAM_HH
 #define SPONGE_LIBSPONGE_BYTE_STREAM_HH
 
+#include <cstddef>
+#include <deque>
 #include <string>
 
 //! \brief An in-order byte stream.
@@ -9,14 +11,12 @@
 //! side.  The byte stream is finite: the writer can end the input,
 //! and then no more bytes can be written.
 class ByteStream {
-  private:
-    // Your code here -- add private members as necessary.
-
-    // Hint: This doesn't need to be a sophisticated data structure at
-    // all, but if any of your tests are taking longer than a second,
-    // that's a sign that you probably want to keep exploring
-    // different approaches.
-
+  private: 
+    std::deque<char> chan; // 双向队列模拟 比特流进出的管道
+    size_t writeLen;  //写入长度
+    size_t readLen;   // 读取长度
+    size_t _capacity; // 管道容量
+    bool isInputEnded; // 输入是否停止
     bool _error{};  //!< Flag indicating that the stream suffered an error.
 
   public:

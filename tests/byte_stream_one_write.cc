@@ -36,12 +36,14 @@ int main() {
             test.execute(Pop{3});
 
             test.execute(InputEnded{true});
+
             test.execute(BufferEmpty{true});
             test.execute(Eof{true});
             test.execute(BytesRead{3});
             test.execute(BytesWritten{3});
             test.execute(RemainingCapacity{15});
             test.execute(BufferSize{0});
+            cout<< "\n\n-------------- it's ok-------------------\n\n";
         }
 
         {

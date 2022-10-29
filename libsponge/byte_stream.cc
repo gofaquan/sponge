@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <deque>
+#include <iostream>
 #include <string>
 
 // Dummy implementation of a flow-controlled in-memory byte stream.
@@ -44,10 +45,13 @@ string ByteStream::peek_output(const size_t len) const {
 
 //! \param[in] len bytes will be removed from the output side of the buffer
 void ByteStream::pop_output(const size_t len) {
-    for (size_t i = 0; i < min(len, remaining_capacity()); i++) {
+
+    for (size_t i = 0; i < min(len, buffer_size()); i++) {
         chan.pop_front();
     }
-    readLen +=  min(len, remaining_capacity());
+//    cout << chan.size();
+//    readLen +=  len;
+    readLen +=  min(len, buffer_size());
 }
 
 //! Read (i.e., copy and then pop) the next "len" bytes of the stream

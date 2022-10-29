@@ -11,7 +11,7 @@
 //! side.  The byte stream is finite: the writer can end the input,
 //! and then no more bytes can be written.
 class ByteStream {
-  private: 
+  private:
     std::deque<char> chan; // 双向队列模拟 比特流进出的管道
     size_t writeLen;  //写入长度
     size_t readLen;   // 读取长度

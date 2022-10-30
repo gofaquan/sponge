@@ -12,7 +12,7 @@
 //! and then no more bytes can be written.
 class ByteStream {
   private:
-    std::deque<char> chan; // 双向队列模拟 比特流进出的管道
+    std::string chan; // 双向队列模拟 比特流进出的管道
     size_t writeLen;  //写入长度
     size_t readLen;   // 读取长度
     size_t _capacity; // 管道容量

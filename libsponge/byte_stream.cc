@@ -18,8 +18,8 @@ void DUMMY_CODE(Targs &&.../* unused */) {}
 
 using namespace std;
 
-ByteStream::ByteStream(const size_t capacity):chan({}),writeLen(0),readLen(0),_capacity(capacity),isInputEnded(false) {
-}
+ByteStream::ByteStream(const size_t capacity)
+    : chan({}), writeLen(0), readLen(0), _capacity(capacity), isInputEnded(false) {}
 
 size_t ByteStream::write(const string &data) {
     if (isInputEnded) {
@@ -45,13 +45,12 @@ string ByteStream::peek_output(const size_t len) const {
 
 //! \param[in] len bytes will be removed from the output side of the buffer
 void ByteStream::pop_output(const size_t len) {
-
     for (size_t i = 0; i < min(len, buffer_size()); i++) {
-        chan.pop_front();
+        chan.erase(0, 1);
     }
-//    cout << chan.size();
-//    readLen +=  len;
-    readLen +=  min(len, buffer_size());
+    //    cout << chan.size();
+    //    readLen +=  len;
+    readLen += min(len, buffer_size());
 }
 
 //! Read (i.e., copy and then pop) the next "len" bytes of the stream
@@ -69,7 +68,7 @@ bool ByteStream::input_ended() const { return isInputEnded; }
 
 size_t ByteStream::buffer_size() const { return writeLen - readLen; }
 
-bool ByteStream::buffer_empty() const { return buffer_size() == 0 ; }
+bool ByteStream::buffer_empty() const { return buffer_size() == 0; }
 
 bool ByteStream::eof() const { return input_ended() && buffer_empty(); }
 

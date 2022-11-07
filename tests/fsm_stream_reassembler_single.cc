@@ -22,7 +22,6 @@ int main() {
             ReassemblerTestHarness test{65000};
 
             test.execute(SubmitSegment{"a", 0});
-
             test.execute(BytesAssembled(1));
             test.execute(BytesAvailable("a"));
             test.execute(NotAtEof{});
@@ -58,6 +57,7 @@ int main() {
             test.execute(AtEof{});
         }
 
+
         {
             ReassemblerTestHarness test{65000};
 
@@ -87,6 +87,7 @@ int main() {
             test.execute(BytesAvailable{"abcdefgh"});
             test.execute(AtEof{});
         }
+
 
         {
             ReassemblerTestHarness test{8};
@@ -135,6 +136,7 @@ int main() {
             test.execute(BytesAssembled(5));
             test.execute(BytesAvailable("abcde"));
             test.execute(AtEof{});
+
         }
     } catch (const exception &e) {
         cerr << "Exception: " << e.what() << endl;

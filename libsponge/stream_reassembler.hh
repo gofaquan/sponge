@@ -18,6 +18,8 @@ class StreamReassembler {
     string queue;
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
+    bool isEOF;
+    size_t end_index;
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.

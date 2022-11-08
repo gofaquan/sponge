@@ -13,13 +13,17 @@ using namespace std;
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
-    size_t next_index;
-    size_t ua_cnt;
-    string queue;
+    // 用于存放缓存
+    std::string cache;
+    // 用于标记缓存对应字节上是否写入内容
+    std::string dirty_check;
+    // 标记写入指针
+    size_t write_p = 0;
+    // 标记EOF位
+    size_t end_p = SIZE_MAX;
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-    bool isEOF;
-    size_t end_index;
+
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.

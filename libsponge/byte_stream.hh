@@ -12,11 +12,11 @@
 //! and then no more bytes can be written.
 class ByteStream {
   private:
-    std::string chan; // 双向队列模拟 比特流进出的管道
-    size_t writeLen;  //写入长度
-    size_t readLen;   // 读取长度
-    size_t _capacity; // 管道容量
-    bool isInputEnded; // 输入是否停止
+    std::string buffer; // 双向队列模拟 比特流进出的管道
+    size_t write_count;  //写入长度
+    size_t read_count;   // 读取长度
+    size_t buffer_max_size; // 管道容量
+    bool is_input_end = false; // 输入是否停止
     bool _error{};  //!< Flag indicating that the stream suffered an error.
 
   public:

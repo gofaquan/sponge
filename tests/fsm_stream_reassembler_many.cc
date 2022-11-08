@@ -8,6 +8,7 @@
 #include <exception>
 #include <iostream>
 #include <stdexcept>
+#include <sys/time.h>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -22,10 +23,16 @@ string read(StreamReassembler &reassembler) {
     return reassembler.stream_out().read(reassembler.stream_out().buffer_size());
 }
 
+// 标记时间戳
+uint64_t getTimeTick() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_usec;
+}
+
 int main() {
     try {
         auto rd = get_random_generator();
-
         // buffer a bunch of bytes, make sure we can empty and re-fill before calling close()
         for (unsigned rep_no = 0; rep_no < NREPS; ++rep_no) {
             StreamReassembler buf{MAX_SEG_LEN * NSEGS};
@@ -45,6 +52,9 @@ int main() {
             for (auto [off, sz] : seq_size) {
                 string dd(d.cbegin() + off, d.cbegin() + off + sz);
                 buf.push_substring(move(dd), off, off + sz == offset);
+
+
+
             }
 
             auto result = read(buf);
@@ -55,7 +65,6 @@ int main() {
                 throw runtime_error("test 1 - content of RX bytes is incorrect");
             }
         }
-
         // insert EOF into a hole in the buffer
         for (unsigned rep_no = 0; rep_no < NREPS; ++rep_no) {
             StreamReassembler buf{65'000};

@@ -21,10 +21,13 @@ int main() {
             uint32_t isn = 23452;
             TCPReceiverTestHarness test{cap};
             test.execute(SegmentArrives{}.with_syn().with_seqno(isn).with_result(SegmentArrives::Result::OK));
+//            cout << "\n"<< "test" << "---------------";
             test.execute(ExpectAckno{WrappingInt32{isn + 1}});
             test.execute(ExpectWindow{cap});
+
             test.execute(
                 SegmentArrives{}.with_seqno(isn + 1).with_data("abcd").with_result(SegmentArrives::Result::OK));
+
             test.execute(ExpectAckno{WrappingInt32{isn + 5}});
             test.execute(ExpectWindow{cap - 4});
             test.execute(

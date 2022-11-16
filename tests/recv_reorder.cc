@@ -19,6 +19,7 @@ int main() {
 
         // An in-window, but later segment
         {
+            // 取随机数
             uint32_t isn = uniform_int_distribution<uint32_t>{0, UINT32_MAX}(rd);
             TCPReceiverTestHarness test{2358};
             test.execute(SegmentArrives{}.with_syn().with_seqno(isn).with_result(SegmentArrives::Result::OK));
@@ -89,8 +90,10 @@ int main() {
             test.execute(SegmentArrives{}.with_seqno(isn + 7).with_data("g").with_result(SegmentArrives::Result::OK));
             test.execute(ExpectAckno{WrappingInt32{isn + 1}});
             test.execute(ExpectBytes{""});
+
             test.execute(ExpectUnassembledBytes{2});
             test.execute(ExpectTotalAssembledBytes{0});
+
             test.execute(SegmentArrives{}.with_seqno(isn + 3).with_data("c").with_result(SegmentArrives::Result::OK));
             test.execute(ExpectAckno{WrappingInt32{isn + 1}});
             test.execute(ExpectBytes{""});

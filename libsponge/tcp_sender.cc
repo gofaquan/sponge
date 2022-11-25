@@ -33,13 +33,15 @@ void TCPSender::fill_window() {
 
     if (!_stream.buffer_empty()) {
         TCPSegment s;
-//        cout << _stream.buffer_size() << endl;
+        //        cout << _stream.buffer_size() << endl;
         s.header().seqno = _isn + _next_seqno;
         size_t size = _stream.buffer_size() > _remain_size ? _remain_size : _stream.buffer_size();
         s.payload() = _stream.read(size);
 
+        _remain_size -= size;
         _next_seqno += size;
         _flighting_bytes += size;
+
         _segments_out.push(s);
     }
 
@@ -58,10 +60,15 @@ void TCPSender::fill_window() {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
     //    cout << ackno.raw_value() << endl;
     //    cout << _isn.raw_value() << endl;
+    if (ackno.raw_value() <= _isn.raw_value()) {
+        return;
+    }
+
     if (ackno.raw_value() > _isn.raw_value()) {
         _wendow_size = _remain_size = window_size;
-//        cout << ackno - _isn << endl;
-//        cout << _next_seqno << endl;
+
+        //        cout << ackno - _isn << endl;
+        //        cout << _next_seqno << endl;
 
         _flighting_bytes = _next_seqno - (ackno - _isn);
     }

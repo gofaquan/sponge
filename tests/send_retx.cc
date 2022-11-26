@@ -63,6 +63,7 @@ int main() {
                 test.execute(ExpectState{TCPSenderStateSummary::SYN_SENT});
                 test.execute(ExpectBytesInFlight{1});
             }
+
             test.execute(Tick{(retx_timeout << TCPConfig::MAX_RETX_ATTEMPTS) - 1u}.with_max_retx_exceeded(false));
             test.execute(Tick{1}.with_max_retx_exceeded(true));
         }

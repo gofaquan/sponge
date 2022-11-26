@@ -33,7 +33,6 @@ void TCPSender::fill_window() {
 
     if (!_stream.buffer_empty()) {
         TCPSegment s;
-        //        cout << _stream.buffer_size() << endl;
         s.header().seqno = _isn + _next_seqno;
         size_t size = _stream.buffer_size() > _remain_size ? _remain_size : _stream.buffer_size();
         s.payload() = _stream.read(size);
@@ -42,6 +41,8 @@ void TCPSender::fill_window() {
         _next_seqno += size;
         _flighting_bytes += size;
 
+        cout << s.payload().str() << "  in" << endl;
+        _store.push(s);
         _segments_out.push(s);
     }
 
@@ -63,27 +64,46 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     if (ackno.raw_value() <= _isn.raw_value()) {
         return;
     }
-
     if (ackno.raw_value() > _isn.raw_value()) {
         _wendow_size = _remain_size = window_size;
-
-        //        cout << ackno - _isn << endl;
-        //        cout << _next_seqno << endl;
-
         _flighting_bytes = _next_seqno - (ackno - _isn);
+    }
+
+    while (!_store.empty() && ackno.raw_value() > _store.front().header().seqno.raw_value()) {
+        cout << _store.front().payload().str() << " out,reset timer" << endl;
+        _retx_attempts = 0;
+        _time_left = _initial_retransmission_timeout;
+        _store.pop();
     }
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
-void TCPSender::tick(const size_t ms_since_last_tick) { _time_left -= ms_since_last_tick; }
+void TCPSender::tick(const size_t ms_since_last_tick) {
+    _time_left -= ms_since_last_tick;
+    if (_time_left <= 0) {
+        if (_store.empty()) {
+            _next_seqno = 0;
+            _flighting_bytes = 0;
+            send_empty_segment();
+        } else {
+            cout << _store.front().payload().str() << "  retry" << endl;
+            _segments_out.push(_store.front());
+        }
+        _retx_attempts++;
+        _time_left = _initial_retransmission_timeout << _retx_attempts;
+    }
+}
 
-unsigned int TCPSender::consecutive_retransmissions() const { return {}; }
+unsigned int TCPSender::consecutive_retransmissions() const { return _retx_attempts; }
 
 void TCPSender::send_empty_segment() {
-    TCPSegment s;
-    s.header().syn = true;
-    s.header().seqno = _isn;
-    _flighting_bytes += 1;
-    _next_seqno += 1;
-    _segments_out.push(s);
+    if (_next_seqno == 0) {
+        TCPSegment s;
+        s.header().syn = true;
+        s.header().seqno = _isn;
+        _flighting_bytes += 1;
+        _next_seqno += 1;
+        //    _store.push(s);
+        _segments_out.push(s);
+    }
 }

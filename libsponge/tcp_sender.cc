@@ -20,6 +20,7 @@ using namespace std;
 //! \param[in] fixed_isn the Initial Sequence Number to use, if set (otherwise uses a random ISN)
 TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const std::optional<WrappingInt32> fixed_isn)
     : _isn(fixed_isn.value_or(WrappingInt32{random_device()()}))
+    , _acked({})
     , _end_index(_isn)
     , _initial_retransmission_timeout{retx_timeout}
     , _time_left(_initial_retransmission_timeout)
@@ -50,14 +51,14 @@ void TCPSender::fill_window() {
         TCPSegment s;
         s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
         // 判断是否能把 byte stream 传完, 选较小塞入 seg
-//        cout << _remain_size << endl;
+        //        cout << _remain_size << endl;
         size_t size = min(stream_in().buffer_size(), _remain_size);
         s.payload() = stream_in().read(size);
 
         _next_seqno += size;       // 塞入后，下一个 seg 的 起始下标
         _flighting_bytes += size;  // 塞入后，还未 received ，还在 flighting，所以加一下
 
-        if (_fin_ready){
+        if (_fin_ready) {
             s.header().fin = true;
         }
 
@@ -74,11 +75,13 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
-    // ackno 序号不合法，直接return
-    if (ackno.raw_value() <= _isn.raw_value()) {
+    // ackno 序号不合法 或者是 传来之前的 ack 或者是 传来的 ack 确认值 > 已发送的最大序号 ，直接return
+    if (ackno.raw_value() <= _isn.raw_value() || _acked.raw_value() > ackno.raw_value() ||
+        ackno.raw_value() > next_seqno().raw_value()) {
         return;
     }
 
+    _acked = ackno;
     _flighting_bytes = next_seqno() - ackno;
     _end_index = ackno + window_size;
 

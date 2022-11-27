@@ -30,6 +30,7 @@ uint64_t TCPSender::bytes_in_flight() const { return _flighting_bytes; }
 
 void TCPSender::fill_window() {
     size_t _remain_size = _end_index.raw_value() - next_seqno().raw_value();
+
     // 准备发送 syn, 未收到确认且 有空间再次发送
     if (_acked == _isn && _remain_size > 0) {
         _syn_ready = true;
@@ -41,35 +42,51 @@ void TCPSender::fill_window() {
     if (stream_in().input_ended()) {
         _fin_ready = true;
     }
-
     TCPSegment s;
-    s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
 
+    cout << _end_index.raw_value() << endl;
+    cout << _remain_size << endl;
+    cout << stream_in().buffer_size() << endl;
     if (_fin_ready && !_fin_sent && _remain_size > 0) {
-        if (stream_in().buffer_empty()) {
-            send_empty_segment();
-        } else {
-            s.header().fin = true;
+        s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
+        if (!stream_in().buffer_empty()) {
             size_t size = min(stream_in().buffer_size(), _remain_size);
+            size = min(size, TCPConfig::MAX_PAYLOAD_SIZE);
             s.payload() = stream_in().read(size);
 
             _next_seqno += size;       // 塞入后，下一个 seg 的 起始下标
             _flighting_bytes += size;  // 塞入后，还未 received ，还在 flighting，所以加一下
 
+            _remain_size -= size;
+            if (_remain_size >= 1) {  // 剩余 1+ 个位置塞入 fin
+                s.header().fin = true;
+                _next_seqno++;
+                _flighting_bytes++;
+                _fin_sent = true;
+            }
+
             //        cout << s.payload().str() << "  in" << endl;
             _store.push(s);         // seg 加入计时器队列，超时就准备发送
             _segments_out.push(s);  // seg 塞进 seg 队列
+
+        } else {
+            send_empty_segment();
+            _fin_sent = true;
         }
-
-        _fin_sent = true;
-
     }
 
+    //    cout << "(!_fin_ready && !stream_in().buffer_empty() && _remain_size > 0) "
+    //         << (!_fin_ready && !stream_in().buffer_empty() && _remain_size > 0) << endl;
+    //    cout << stream_in().buffer_size() << endl;
+
     // byte stream 有数据，从里面拿出塞进 seg 队列
-    if (!_fin_ready && !stream_in().buffer_empty() && _remain_size > 0) {
+    while (!_fin_ready && !stream_in().buffer_empty() && _remain_size > 0) {
+        s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
+
         // 判断是否能把 byte stream 传完, 选较小塞入 seg
         //        cout << _remain_size << endl;
         size_t size = min(stream_in().buffer_size(), _remain_size);
+        size = min(size, TCPConfig::MAX_PAYLOAD_SIZE);
         s.payload() = stream_in().read(size);
 
         _next_seqno += size;       // 塞入后，下一个 seg 的 起始下标
@@ -78,7 +95,8 @@ void TCPSender::fill_window() {
         //        cout << s.payload().str() << "  in" << endl;
         _store.push(s);         // seg 加入计时器队列，超时就准备发送
         _segments_out.push(s);  // seg 塞进 seg 队列
-    } else {                    // byte steam 没有数据，判定为开始或者结束
+
+        _remain_size -= size;  // 及时减去 remain_size，防止 循环出错
     }
 }
 
@@ -95,8 +113,6 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
     _acked = ackno;
     _flighting_bytes = next_seqno() - ackno;
-    cout << ackno.raw_value() - _isn.raw_value() << endl;
-    cout << _flighting_bytes << endl;
     _end_index = ackno + window_size;
 
     while (!_store.empty() && ackno.raw_value() > _store.front().header().seqno.raw_value()) {
@@ -109,10 +125,11 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
-    _time_left -= ms_since_last_tick;
-    // 到重传时间
-    if (_time_left <= 0) {
-        //
+    // 不直接相减，防止 结果本来为负, 但 size_t 是 unsigned 转为 很大的正数
+    if (_time_left > ms_since_last_tick) {
+        _time_left -= ms_since_last_tick;
+    } else {
+        // 到重传时间
         if (!_store.empty()) {
             //            cout << _store.front()
             //            _next_seqno = _flighting_bytes = 0;

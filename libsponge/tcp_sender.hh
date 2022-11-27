@@ -20,8 +20,11 @@ class TCPSender {
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
     uint64_t _flighting_bytes = 0;
-    uint16_t _wendow_size = 1;
-    uint16_t _remain_size = 0;
+//    uint16_t _wendow_size = 0;
+//    uint16_t _remain_size = 0;
+    WrappingInt32 _end_index;
+    bool _syn_ready = false;
+    bool _fin_ready = false;
     unsigned int retransmissions = 0;
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};

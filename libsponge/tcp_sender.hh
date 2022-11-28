@@ -19,18 +19,17 @@ class TCPSender {
   private:
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
-    uint64_t _flighting_bytes = 0;
-    WrappingInt32 _acked ;
+    WrappingInt32 _acked;
     uint16_t _window_size = UINT16_MAX;
-    WrappingInt32 _end_index;
-    bool _syn_ready = false;
-    bool _fin_ready = false;
+    // next_seqno 的最大值
+    WrappingInt32 _NEXT_SeqNo_MAX;
     bool _fin_sent = false;
     bool _0_is_sent = false;
-    unsigned int retransmissions = 0;
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};
+    // 存储 tcp seg 用于重传
     std::queue<TCPSegment> _store{};
+    // 重传次数
     size_t _retx_attempts = 0;
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
@@ -96,6 +95,7 @@ class TCPSender {
     //! \brief relative seqno for the next byte to be sent
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
+    void send_segment(TCPSegment s, WrappingInt32 seqno, bool syn, bool fin, size_t size);
 };
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH

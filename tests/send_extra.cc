@@ -159,21 +159,27 @@ int main() {
             for (unsigned int i = 0; i < TCPConfig::DEFAULT_CAPACITY; i++) {
                 bigstring.push_back(nicechars.at(rd() % nicechars.size()));
             }
-            cout << "big string length: " << bigstring.length() << endl;
+            //            cout << "big string length: " << bigstring.length() << endl;
             const size_t window_size = uniform_int_distribution<uint16_t>{50000, 63000}(rd);
 
+            //            cout << "-------------------" << endl;
             TCPSenderTestHarness test{"fill_window() correctly fills a big window", cfg};
+            //            cout << "-------------------" << endl;
             test.execute(WriteBytes(string(bigstring)));  // 塞入 64000 长度的 string
+                                                          //            cout << "-------------------" << endl;
+
             test.execute(
                 ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));  // 发送 syn
             test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(window_size));                   // 接受 syn
-            test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});                               // 确认状态
+            //            cout << "-------------------" << endl;
+
+            test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});  // 确认状态
             // 开始 折磨
-            cout << "min(bigstring.size(), window_size) = " << min(bigstring.size(), window_size) << endl;
+            //            cout << "min(bigstring.size(), window_size) = " << min(bigstring.size(), window_size) << endl;
             for (unsigned int i = 0; i + TCPConfig::MAX_PAYLOAD_SIZE < min(bigstring.size(), window_size);
                  i += TCPConfig::MAX_PAYLOAD_SIZE) {  // 前面的都是 1452，最后一段 <= 1452
                 const size_t expected_size = min(TCPConfig::MAX_PAYLOAD_SIZE, min(bigstring.size(), window_size) - i);
-                //                cout << "expected_size = "<< expected_size << endl;
+                //          cout << "expected_size = "<< expected_size << endl;
                 test.execute(ExpectSegment{}
                                  .with_no_flags()
                                  .with_payload_size(expected_size)
@@ -317,6 +323,7 @@ int main() {
             test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});
             test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn + 1).with_no_flags());
             test.execute(Close{});
+
             test.execute(ExpectNoSegment{});
 
             for (unsigned int i = 0; i < 5; i++) {
@@ -357,90 +364,92 @@ int main() {
             }
         }
 
-        //        {
-        //            TCPConfig cfg;
-        //            WrappingInt32 isn(rd());
-        //            const size_t rto = uniform_int_distribution<uint16_t>{30, 10000}(rd);
-        //            cfg.fixed_isn = isn;
-        //            cfg.rt_timeout = rto;
-        //
-        //            TCPSenderTestHarness test{"Unlike a zero-size window, a full window of nonzero size should be
-        //            respected",
-        //                                      cfg};
-        //            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
-        //            test.execute(WriteBytes("abc"));
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1));
-        //            test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});
-        //            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn +
-        //            1).with_no_flags()); test.execute(Tick{rto - 1}); test.execute(ExpectNoSegment{});
-        //            test.execute(Tick{1});
-        //            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn +
-        //            1).with_no_flags());
-        //
-        //            test.execute(Close{});
-        //
-        //            test.execute(Tick{2 * rto - 1});
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(Tick{1});
-        //            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn +
-        //            1).with_no_flags());
-        //
-        //            test.execute(Tick{4 * rto - 1});
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(Tick{1});
-        //            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn +
-        //            1).with_no_flags());
-        //
-        //            test.execute(AckReceived{WrappingInt32{isn + 2}}.with_win(3));
-        //            test.execute(ExpectSegment{}.with_payload_size(2).with_data("bc").with_seqno(isn +
-        //            2).with_fin(true));
-        //        }
-        //
-        //        {
-        //            TCPConfig cfg;
-        //            WrappingInt32 isn(rd());
-        //            const size_t rto = uniform_int_distribution<uint16_t>{30, 10000}(rd);
-        //            cfg.fixed_isn = isn;
-        //            cfg.rt_timeout = rto;
-        //
-        //            TCPSenderTestHarness test{"Repeated ACKs and outdated ACKs are harmless", cfg};
-        //
-        //            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});
-        //            test.execute(WriteBytes("abcdefg"));
-        //            test.execute(ExpectSegment{}.with_payload_size(7).with_data("abcdefg").with_seqno(isn + 1));
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(WriteBytes("ijkl").with_end_input(true));
-        //            test.execute(ExpectSegment{}.with_payload_size(4).with_data("ijkl").with_seqno(isn +
-        //            8).with_fin(true)); test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 12}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 12}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 12}}.with_win(1000));
-        //            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
-        //            test.execute(Tick{5 * rto});
-        //            test.execute(ExpectSegment{}.with_payload_size(4).with_data("ijkl").with_seqno(isn +
-        //            8).with_fin(true)); test.execute(ExpectNoSegment{}); test.execute(AckReceived(WrappingInt32{isn +
-        //            13}).with_win(1000)); test.execute(AckReceived(WrappingInt32{isn + 1}).with_win(1000));
-        //            test.execute(Tick{5 * rto});
-        //            test.execute(ExpectNoSegment{});
-        //            test.execute(ExpectState{TCPSenderStateSummary::FIN_ACKED});
-        //        }
+        {
+            TCPConfig cfg;
+            WrappingInt32 isn(rd());
+            const size_t rto = uniform_int_distribution<uint16_t>{30, 10000}(rd);
+            cfg.fixed_isn = isn;
+            cfg.rt_timeout = rto;
+
+            TCPSenderTestHarness test{"Unlike a zero-size window, a full window of nonzero size should be respected",
+                                      cfg};
+            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
+            test.execute(WriteBytes("abc"));
+            test.execute(ExpectNoSegment{});
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1));
+            test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});
+            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn + 1).with_no_flags());
+            test.execute(Tick{rto - 1});
+            test.execute(ExpectNoSegment{});
+            test.execute(Tick{1});
+            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn + 1).with_no_flags());
+
+            test.execute(Close{});
+
+            test.execute(Tick{2 * rto - 1});
+            test.execute(ExpectNoSegment{});
+            test.execute(Tick{1});
+            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn + 1).with_no_flags());
+
+            test.execute(Tick{4 * rto - 1});
+            test.execute(ExpectNoSegment{});
+            test.execute(Tick{1});
+            test.execute(ExpectSegment{}.with_payload_size(1).with_data("a").with_seqno(isn + 1).with_no_flags());
+
+            test.execute(AckReceived{WrappingInt32{isn + 2}}.with_win(3));
+            test.execute(ExpectSegment{}.with_payload_size(2).with_data("bc").with_seqno(isn + 2).with_fin(true));
+        }
+
+        {
+            TCPConfig cfg;
+            WrappingInt32 isn(rd());
+            const size_t rto = uniform_int_distribution<uint16_t>{30, 10000}(rd);
+            cfg.fixed_isn = isn;
+            cfg.rt_timeout = rto;
+
+            TCPSenderTestHarness test{"Repeated ACKs and outdated ACKs are harmless", cfg};
+
+            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(ExpectState{TCPSenderStateSummary::SYN_ACKED});
+            test.execute(WriteBytes("abcdefg"));
+            test.execute(ExpectSegment{}.with_payload_size(7).with_data("abcdefg").with_seqno(isn + 1));
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(ExpectNoSegment{});
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(ExpectNoSegment{});
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(ExpectNoSegment{});
+            test.execute(WriteBytes("ijkl").with_end_input(true));
+            test.execute(ExpectSegment{}.with_payload_size(4).with_data("ijkl").with_seqno(isn + 8).with_fin(true));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 12}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 12}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 12}}.with_win(1000));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
+
+            test.execute(Tick{5 * rto});
+            cout << "-------------------" << endl;
+
+            test.execute(ExpectSegment{}.with_payload_size(4).with_data("ijkl").with_seqno(isn + 8).with_fin(true));
+            test.execute(ExpectNoSegment{});
+            test.execute(AckReceived(WrappingInt32{isn + 13}).with_win(1000));
+            test.execute(AckReceived(WrappingInt32{isn + 1}).with_win(1000));
+
+
+            test.execute(Tick{5 * rto});
+            test.execute(ExpectNoSegment{});
+            test.execute(ExpectState{TCPSenderStateSummary::FIN_ACKED});
+        }
     } catch (const exception &e) {
         cerr << e.what() << endl;
         return 1;

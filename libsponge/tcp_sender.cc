@@ -29,7 +29,32 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
 uint64_t TCPSender::bytes_in_flight() const { return _flighting_bytes; }
 
 void TCPSender::fill_window() {
-    size_t _remain_size = _end_index.raw_value() - next_seqno().raw_value();
+    size_t _remain_size = 0;
+    if (_end_index.raw_value() > next_seqno().raw_value()) {  // 防止 < 0
+        _remain_size = _end_index.raw_value() - next_seqno().raw_value();
+    }
+    //    cout << _end_index.raw_value() << endl;
+    //    cout << next_seqno().raw_value() << endl;
+    //    cout << " remain size test " << _remain_size << endl;
+    if (_window_size == 0 && !_0_is_sent) {
+        //    if (!stream_in().buffer_empty() && _window_size == 0 && !_0_is_sent) {
+        if (stream_in().buffer_empty()) {
+            _fin_ready = true;
+            send_empty_segment();
+        } else {
+            //        cout << "cnm" << endl;
+            TCPSegment s;
+            s.header().seqno = next_seqno();
+            s.payload() = stream_in().read(1);
+            _next_seqno++;
+            _flighting_bytes++;
+
+            _store.push(s);
+            _segments_out.push(s);
+
+            _0_is_sent = true;
+        }
+    }
 
     // 准备发送 syn, 未收到确认且 有空间再次发送
     if (_acked == _isn && _remain_size > 0) {
@@ -44,9 +69,9 @@ void TCPSender::fill_window() {
     }
     TCPSegment s;
 
-    cout << _end_index.raw_value() << endl;
-    cout << _remain_size << endl;
-    cout << stream_in().buffer_size() << endl;
+    //    cout << _end_index.raw_value() << endl;
+    //    cout << _remain_size << endl;
+    //    cout << stream_in().buffer_size() << endl;
     if (_fin_ready && !_fin_sent && _remain_size > 0) {
         s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
         if (!stream_in().buffer_empty()) {
@@ -109,17 +134,27 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         return;
     }
 
-    //    cout << window_size << endl;
+    if (window_size == 0) {
+        _window_size = 0;
+    }
 
     _acked = ackno;
     _flighting_bytes = next_seqno() - ackno;
     _end_index = ackno + window_size;
 
-    while (!_store.empty() && ackno.raw_value() > _store.front().header().seqno.raw_value()) {
+    while (!_store.empty() &&
+           ackno.raw_value() >= _store.front().header().seqno.raw_value() + _store.front().length_in_sequence_space()) {
+        //    while (!_store.empty() && ackno.raw_value() > _store.front().header().seqno.raw_value()) {
         //        cout << _store.front().payload().str() << " out,reset timer" << endl;
+        _store.pop();
+
+        // 会执行多次 可以设个 flag
         _retx_attempts = 0;
         _time_left = _initial_retransmission_timeout;
-        _store.pop();
+    }
+
+    if (_0_is_sent) {
+        _0_is_sent = false;
     }
 }
 
@@ -137,8 +172,11 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
             //        } else {  // 重传最小序号的 未收到 seg.payload().str() << "  retry" << endl;
             _segments_out.push(_store.front());
         }
-        // 重传次数 +1, 计时器时间加倍
-        _retx_attempts++;
+
+        if (_window_size != 0) {
+            // 重传次数 +1, 计时器时间加倍
+            _retx_attempts++;
+        }
         _time_left = _initial_retransmission_timeout << _retx_attempts;
     }
 }

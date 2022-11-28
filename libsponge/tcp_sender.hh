@@ -21,11 +21,12 @@ class TCPSender {
     WrappingInt32 _isn;
     uint64_t _flighting_bytes = 0;
     WrappingInt32 _acked ;
-//    uint16_t _remain_size = 0;
+    uint16_t _window_size = UINT16_MAX;
     WrappingInt32 _end_index;
     bool _syn_ready = false;
     bool _fin_ready = false;
     bool _fin_sent = false;
+    bool _0_is_sent = false;
     unsigned int retransmissions = 0;
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};

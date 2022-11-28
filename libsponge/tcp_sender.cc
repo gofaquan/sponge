@@ -32,16 +32,16 @@ uint64_t TCPSender::bytes_in_flight() const {
 }
 
 // 发送 seg
-void TCPSender::send_segment(TCPSegment s, WrappingInt32 seqno, bool syn, bool fin, size_t size) {
+void TCPSender::send_segment(TCPSegment s, bool syn, bool fin, size_t size) {
     s.header().syn = syn;
     s.header().fin = fin;
-    s.header().seqno = seqno;
+    s.header().seqno = next_seqno();  // 下个 seg 的起始下标
     if (!_stream.buffer_empty()) {
         s.payload() = _stream.read(size);
     }
-    _next_seqno += size;
-    _store.push(s);
-    _segments_out.push(s);
+    _next_seqno += size;    // 下一个 seg 的 起始下标
+    _store.push(s);         // seg 加入计时器队列，超时就准备发送
+    _segments_out.push(s);  // seg 塞进 seg 队列
 }
 
 void TCPSender::fill_window() {
@@ -52,9 +52,10 @@ void TCPSender::fill_window() {
     }
 
     TCPSegment s;
-    // 准备发送 syn, 未收到确认且 有空间再次发送
+    // 准备发送 syn
+    // 未收到确认且有空间发送
     if (_acked == _isn && _remain_size > 0) {
-        send_segment(s, next_seqno(), true, false, 1);
+        send_segment(s, true, false, 1);
         return;
     }
 
@@ -62,47 +63,31 @@ void TCPSender::fill_window() {
     if (_window_size == 0 && !_0_is_sent) {
         // stream 的 buffer 为空，就 send empty seg, 同时传 fin 暂停传输
         if (stream_in().buffer_empty()) {
-            s.header().fin = true;
-            send_segment(s, next_seqno(), false, true, 1);
+            send_segment(s, false, true, 1);
         } else {
             // stream buffer 不为空，可以发 1 byte
-//            s.payload() = stream_in().read(1);
-            send_segment(s, next_seqno(), false, false, 1);
+            send_segment(s, false, false, 1);
         }
 
         _0_is_sent = true;  // 只发一次
-//        s.header().seqno = next_seqno();
-//        _next_seqno++;
-//        _store.push(s);
-//        _segments_out.push(s);
     }
 
     if (stream_in().input_ended() && !_fin_sent && _remain_size > 0) {
-        s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
         if (!stream_in().buffer_empty()) {
             size_t size = min(stream_in().buffer_size(), _remain_size);
             size = min(size, TCPConfig::MAX_PAYLOAD_SIZE);
-            s.payload() = stream_in().read(size);
-
-            _next_seqno += size;  // 塞入后，下一个 seg 的 起始下标
-
-            _remain_size -= size;
-            if (_remain_size >= 1) {  // 剩余 至少一个 位置塞入 fin
-                s.header().fin = true;
-                _next_seqno++;
+            // 剩余出 至少一个 位置塞入 fin
+            if (_remain_size >= size + 1) {
+                send_segment(s, false, true, size + 1);
                 _fin_sent = true;
+            } else {
+                send_segment(s, false, false, size);
             }
 
         } else {  // 只发送 fin
-            s.header().fin = true;
-            s.header().seqno = next_seqno();
-            _next_seqno++;
-
+            send_segment(s, false, true, 1);
             _fin_sent = true;
         }
-
-        _store.push(s);         // seg 加入计时器队列，超时就准备发送
-        _segments_out.push(s);  // seg 塞进 seg 队列
     }
 
     // byte stream 有数据，从里面拿出塞进 seg 队列
@@ -110,18 +95,13 @@ void TCPSender::fill_window() {
         s.header().seqno = next_seqno();  // 发送的 seg 的 seqno
 
         // 判断是否能把 byte stream 传完, 选较小塞入 seg
-        //        cout << _remain_size << endl;
         size_t size = min(stream_in().buffer_size(), _remain_size);
         size = min(size, TCPConfig::MAX_PAYLOAD_SIZE);
-        s.payload() = stream_in().read(size);
 
-        _next_seqno += size;  // 塞入后，下一个 seg 的 起始下标
+        send_segment(s, false, false, size);
 
-        //        cout << s.payload().str() << "  in" << endl;
-        _store.push(s);         // seg 加入计时器队列，超时就准备发送
-        _segments_out.push(s);  // seg 塞进 seg 队列
-
-        _remain_size -= size;  // 及时减去 remain_size，防止 循环出错
+        // 及时减去 remain_size，防止 while 循环出错
+        _remain_size -= size;
     }
 }
 
@@ -150,14 +130,14 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         _store.pop();
 
         if (!refreshed) {
-            // 可以设个 flag, 只执行一次
+            // 设个 flag, 让以下只执行一次
             _retx_attempts = 0;
             _time_left = _initial_retransmission_timeout;
             refreshed = true;
         }
     }
 
-    // 试探成功，就刷新
+    // 试探 receiver 成功，就刷新
     if (_0_is_sent) {
         _0_is_sent = false;
     }
@@ -187,7 +167,6 @@ unsigned int TCPSender::consecutive_retransmissions() const { return _retx_attem
 
 // 发送空 seg
 void TCPSender::send_empty_segment() {
-    //    cout << "w34q" << endl;
     TCPSegment s;
     s.header().seqno = next_seqno();
     _store.push(s);

@@ -67,7 +67,7 @@ class FileDescriptor {
     //! Write a string, possibly blocking until all is written
     size_t write(const std::string &str, const bool write_all = true) { return write(BufferViewList(str), write_all); }
 
-    //! Write a buffer (or list of buffers), possibly blocking until all is written
+    //! Write a _buffer (or list of buffers), possibly blocking until all is written
     size_t write(BufferViewList buffer, const bool write_all = true);
 
     //! Close the underlying file descriptor

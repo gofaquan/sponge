@@ -36,7 +36,7 @@ void TCPSender::send_segment(TCPSegment s, bool syn, bool fin, size_t size) {
     s.header().syn = syn;
     s.header().fin = fin;
     s.header().seqno = next_seqno();  // 下个 seg 的起始下标
-    if (!_stream.buffer_empty()) {
+    if (!_stream.buffer_empty()) {    // 为空就不读
         s.payload() = _stream.read(size);
     }
     _next_seqno += size;    // 下一个 seg 的 起始下标
@@ -59,19 +59,20 @@ void TCPSender::fill_window() {
         return;
     }
 
-    // receiver 发送 ack, 同时返回给 sender 的窗口为 0
+    // receiver 发送 ack, 同时返回给 sender 的窗口为 0，sender 可以 发送 1 窗口大小的 seg 来试探
     if (_window_size == 0 && !_0_is_sent) {
-        // stream 的 buffer 为空，就 send empty seg, 同时传 fin 暂停传输
+        // stream 的 _buffer 为空， 传 fin 停止后续传输 (fin 填充后的空 seg 为 1)
         if (stream_in().buffer_empty()) {
             send_segment(s, false, true, 1);
         } else {
-            // stream buffer 不为空，可以发 1 byte
+            // stream _buffer 不为空，可以发 1 byte 来确认 ( 1 byte 的 _buffer 填充, 不传 fin)
             send_segment(s, false, false, 1);
         }
 
         _0_is_sent = true;  // 只发一次
     }
 
+//    if (stream_in().input_ended() && _remain_size > 0) {
     if (stream_in().input_ended() && !_fin_sent && _remain_size > 0) {
         if (!stream_in().buffer_empty()) {
             size_t size = min(stream_in().buffer_size(), _remain_size);

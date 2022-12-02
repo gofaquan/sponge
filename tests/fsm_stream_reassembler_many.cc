@@ -33,7 +33,7 @@ uint64_t getTimeTick() {
 int main() {
     try {
         auto rd = get_random_generator();
-        // buffer a bunch of bytes, make sure we can empty and re-fill before calling close()
+        // _buffer a bunch of bytes, make sure we can empty and re-fill before calling close()
         for (unsigned rep_no = 0; rep_no < NREPS; ++rep_no) {
             StreamReassembler buf{MAX_SEG_LEN * NSEGS};
 
@@ -65,7 +65,7 @@ int main() {
                 throw runtime_error("test 1 - content of RX bytes is incorrect");
             }
         }
-        // insert EOF into a hole in the buffer
+        // insert EOF into a hole in the _buffer
         for (unsigned rep_no = 0; rep_no < NREPS; ++rep_no) {
             StreamReassembler buf{65'000};
 

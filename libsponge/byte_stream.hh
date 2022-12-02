@@ -12,11 +12,11 @@
 //! and then no more bytes can be written.
 class ByteStream {
   private:
-    std::string buffer; // 双向队列模拟 比特流进出的管道
+    std::string _buffer; // 双向队列模拟 比特流进出的管道
     size_t write_count;  //写入长度
     size_t read_count;   // 读取长度
     size_t buffer_max_size; // 管道容量
-    bool is_input_end = false; // 输入是否停止
+    bool _input_end = false; // 输入是否停止
     bool _error{};  //!< Flag indicating that the stream suffered an error.
 
   public:
@@ -48,7 +48,7 @@ class ByteStream {
     //! \returns a string
     std::string peek_output(const size_t len) const;
 
-    //! Remove bytes from the buffer
+    //! Remove bytes from the _buffer
     void pop_output(const size_t len);
 
     //! Read (i.e., copy and then pop) the next "len" bytes of the stream
@@ -64,7 +64,7 @@ class ByteStream {
     //! \returns the maximum amount that can currently be read from the stream
     size_t buffer_size() const;
 
-    //! \returns `true` if the buffer is empty
+    //! \returns `true` if the _buffer is empty
     bool buffer_empty() const;
 
     //! \returns `true` if the output has reached the ending

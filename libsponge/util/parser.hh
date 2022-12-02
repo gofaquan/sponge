@@ -58,7 +58,7 @@ class NetParser {
     //! Parse an 8-bit integer in network byte order from the data stream
     uint8_t u8();
 
-    //! Remove n bytes from the buffer
+    //! Remove n bytes from the _buffer
     void remove_prefix(const size_t n);
 };
 

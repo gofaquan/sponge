@@ -40,7 +40,7 @@ class TestFD : public FileDescriptor {
   public:
     TestFD();  //!< Default constructor invokes TestFD(std::pair<FileDescriptor, TestRFD> fd_pair)
 
-    void write(const BufferViewList &buffer);  //!< Write a buffer
+    void write(const BufferViewList &buffer);  //!< Write a _buffer
 
     bool can_read() const { return _recv_fd.can_read(); }  //!< Is TestFD::_recv_fd readable?
 

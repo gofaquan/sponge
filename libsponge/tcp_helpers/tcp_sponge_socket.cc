@@ -90,7 +90,7 @@ void TCPSpongeSocket<AdaptT>::_initialize_TCP(const TCPConfig &config) {
                         },
                         [&] { return _tcp->active(); });
 
-    // rule 2: read from pipe into outbound buffer
+    // rule 2: read from pipe into outbound _buffer
     _eventloop.add_rule(
         _thread_data,
         Direction::In,
@@ -118,7 +118,7 @@ void TCPSpongeSocket<AdaptT>::_initialize_TCP(const TCPConfig &config) {
             _outbound_shutdown = true;
         });
 
-    // rule 3: read from inbound buffer into pipe
+    // rule 3: read from inbound _buffer into pipe
     _eventloop.add_rule(
         _thread_data,
         Direction::Out,

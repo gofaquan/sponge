@@ -81,11 +81,11 @@ size_t FileDescriptor::write(BufferViewList buffer, const bool write_all) {
 
         const ssize_t bytes_written = SystemCall("writev", ::writev(fd_num(), iovecs.data(), iovecs.size()));
         if (bytes_written == 0 and buffer.size() != 0) {
-            throw runtime_error("write returned 0 given non-empty input buffer");
+            throw runtime_error("write returned 0 given non-empty input _buffer");
         }
 
         if (bytes_written > ssize_t(buffer.size())) {
-            throw runtime_error("write wrote more than length of input buffer");
+            throw runtime_error("write wrote more than length of input _buffer");
         }
 
         register_write();

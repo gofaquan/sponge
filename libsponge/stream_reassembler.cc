@@ -87,9 +87,6 @@ size_t StreamReassembler::unassembled_bytes() const {
             n++;
         }
     }
-    //    for (size_t i = write_p; n != cache.length() && not dirty_check[i]; i++) {
-    //        n++;
-    //    }
 
     return n;
 }

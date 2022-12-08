@@ -16,15 +16,15 @@
 //! maintains the Retransmission Timer, and retransmits in-flight
 //! segments if the retransmission timer expires.
 class TCPSender {
-  private:
+private:
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
-    WrappingInt32 _acked;
-    uint16_t _window_size = UINT16_MAX;
+    std::optional<WrappingInt32> _acked;
+    uint16_t _window_size = 1;
     // next_seqno 的最大值
-    WrappingInt32 _NEXT_SeqNo_MAX;
     bool _fin_sent = false;
     bool _0_is_sent = false;
+    bool _not_received_0 = true;
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};
     // 存储 tcp seg 用于重传
@@ -39,8 +39,8 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
-
-  public:
+    uint64_t _allow_seqno_max{0};
+public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
               const uint16_t retx_timeout = TCPConfig::TIMEOUT_DFLT,
@@ -49,6 +49,7 @@ class TCPSender {
     //! \name "Input" interface for the writer
     //!@{
     ByteStream &stream_in() { return _stream; }
+
     const ByteStream &stream_in() const { return _stream; }
     //!@}
 
@@ -94,6 +95,7 @@ class TCPSender {
 
     //! \brief relative seqno for the next byte to be sent
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
+
     //!@}
     void send_segment(TCPSegment s, bool syn, bool fin, size_t size);
 };

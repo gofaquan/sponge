@@ -438,7 +438,7 @@ int main() {
             test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(1000));
 
             test.execute(Tick{5 * rto});
-            cout << "-------------------" << endl;
+//            cout << "-------------------" << endl;
 
             test.execute(ExpectSegment{}.with_payload_size(4).with_data("ijkl").with_seqno(isn + 8).with_fin(true));
             test.execute(ExpectNoSegment{});
